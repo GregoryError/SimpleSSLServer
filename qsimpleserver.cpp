@@ -294,7 +294,7 @@ bool QSimpleServer::chekAuth(const QString &id, const QString &pass)
     query.exec("SELECT passwd, AES_DECRYPT(passwd, 'hardpass3')"
                " AS PASSWORD FROM users WHERE id=" + id);
     }else{
-        query.exec("SELECT passwd, AES_DECRYPT(passwd, 'hardpass3')"
+        query.exec("SELECT passwd, AES_DECRYPT(passwd, 'key')"
                    " AS PASSWORD FROM users WHERE name='" + id + "'");
     }
 
