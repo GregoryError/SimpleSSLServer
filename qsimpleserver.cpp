@@ -291,7 +291,7 @@ bool QSimpleServer::chekAuth(const QString &id, const QString &pass)
     // если же id это isLetter - то соответственно WHERE name = ...
 
     if(id[0].isDigit()){
-    query.exec("SELECT passwd, AES_DECRYPT(passwd, 'hardpass3')"
+    query.exec("SELECT passwd, AES_DECRYPT(passwd, 'key')"
                " AS PASSWORD FROM users WHERE id=" + id);
     }else{
         query.exec("SELECT passwd, AES_DECRYPT(passwd, 'key')"
