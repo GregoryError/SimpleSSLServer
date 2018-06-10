@@ -13,6 +13,7 @@
 #include <QSql>
 #include <QSqlQuery>
 #include <QSqlRecord>
+#include <QSqlQueryModel>
 #include <QSqlError>
 #include <QSettings>
 #include <QMap>
@@ -24,7 +25,7 @@
 #include <QDataStream>
 #include <QTime>
 #include <QObject>
-
+#include <QTcpSocket>
 
 class QSimpleServer : public QTcpServer
 {
@@ -42,11 +43,13 @@ public:
     QSqlQuery query;
 
 
-    void incomingConnection(int handle);
-    void readConfig(QStringList &line);
+    void incomingConnection(qintptr handle);
+    bool readConfig(QStringList &line);
     void queryToSql(const QString &id, const QString& quest, QString& answer);
+    void askSql(const QString &ident, const QString& key, QString& answer);
     void updateSql(const QString &id, const QString& key, const QString arg);
     bool chekAuth(const QString& id, const QString& pass);
+    void preparePayTable(QString &str);
 
 public slots:
     void onReadyRead();
@@ -54,3 +57,40 @@ public slots:
 };
 
 #endif // QSIMPLESERVER_H
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

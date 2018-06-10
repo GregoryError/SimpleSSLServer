@@ -16,3 +16,5 @@ SOURCES += main.cpp \
 HEADERS += \
     qsimpleserver.h
 
+RESOURCES +=
+
