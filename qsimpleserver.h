@@ -20,6 +20,7 @@
 #include <QObject>
 //#include <QTcpSocket>
 #include <QSslSocket>
+#include <QRegExp>
 
 
 
@@ -39,17 +40,18 @@ public:
     QMap<QString, QString> map;
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
     QSqlQuery query;
+    QDateTime now;
 
 
 
-    void senderToClient(QTcpSocket *socket, const QString &str);
+    void senderToClient(QSslSocket *socket, const QString &str);
 
     void incomingConnection(qintptr handle);
     bool readConfig(QStringList &line);
     void queryToSql(const QString &id, const QString& quest, QString& answer);
     void askSql(const QString &ident, const QString& key, QString& answer);
     void updateSql(const QString &id, const QString& key, const QString arg);
-    void injectTrustedPay(const QString &id, const QString& key);
+    void injectTrustedPay(const QString &id, const QString& key, QSslSocket *sckt);
     bool chekAuth(const QString& id, const QString& pass);
 
 public slots:

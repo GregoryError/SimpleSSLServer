@@ -5,6 +5,12 @@ QSimpleServer::QSimpleServer(QObject *parent) :
     QTcpServer(parent)
 {
 
+
+    now = QDateTime::currentDateTime();
+
+    qDebug() << "Check the current time...." << now.toString("yyyy-MM-dd HH:MM:ss");
+
+
     //--------------config-data------------------------------------------------------
 
 
@@ -86,13 +92,13 @@ QSimpleServer::QSimpleServer(QObject *parent) :
     //----------------------TCP-SERVER-----------------------------------------------
 
     if(listen(QHostAddress::Any, portTCP.toInt()))
-        qDebug() << "Listening...";
+        qDebug() << "Listening port " << portTCP.toInt() << "...";
     else qDebug() << "Error while starting: " + errorString();
 
 
 }
 
-void QSimpleServer::senderToClient(QTcpSocket *socket, const QString &str)
+void QSimpleServer::senderToClient(QSslSocket *socket, const QString &str)
 {
     QByteArray arrBlock;
     QDataStream out(&arrBlock, QIODevice::WriteOnly);
@@ -175,7 +181,7 @@ void QSimpleServer::onReadyRead()
     //socket->close();
 
 
-    qDebug() << message;
+    //qDebug() << message;
 
     QString authData;
 
@@ -238,7 +244,8 @@ void QSimpleServer::onReadyRead()
 
         if(key.mid(0, 17) == "requestTrustedPay")
         {
-            injectTrustedPay(id, key);
+            injectTrustedPay(id, key, socket);
+
         }
         else if(key.mid(0, 4) == "show"){
             queryToSql(attribute, key, answ);
@@ -317,29 +324,101 @@ void QSimpleServer::onReadyRead()
 
 
 
-
-
-
-
-void QSimpleServer::injectTrustedPay(const QString &id, const QString &key)
+void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSslSocket *sckt)
 {
     QString t_quest = map.value(key);
 
-    qDebug() << t_quest;
 
-     QString quest, cash;
+    //qDebug() << t_quest;
+
+    QString quest, cash;
+
+    // chekForTrustedPay! - is the key for checking is it possible to take trusted pay
+    // its content: SELECT * FROM pays WHERE mid = AND time BETWEEN AND type IN (20,21,22)
+
+
+
+    QString payDate_f, payDate;                 // узнаем дату платежа в текущем мсц, и переводим ее в unixtime
+
+    queryToSql(id, "askPayDate!", payDate_f);
+
+    for (auto &ch: payDate_f)                  // considering to use RegXeps
+        if (ch.isDigit())
+            payDate += ch;
+
+
+
+    QString dateSince = now.toString(payDate + "/MM/yyyy");   // dd/MM/yyyy
+
+    QDateTime t_Date = QDateTime::fromString(dateSince, "dd/MM/yyyy");
+
+    unsigned long dateSinceInt = t_Date.toTime_t();
+
+    dateSince = QString::number(t_Date.toTime_t());
+
+    // слудующая дата снятия
+
+
+    dateSinceInt += 2629743;
+
+    QString dateTill = QString::number(dateSinceInt);
+
+    QString checkStr(map.value("chekForTrustedPay!"));
+
+    QString checkQuest;
+
+    for (auto &ch:checkStr)
+    {
+        checkQuest += ch;
+        if (checkQuest.right(7) == "BETWEEN")
+        {
+            checkQuest += " ";
+            checkQuest += dateSince + " AND " + dateTill;
+        }
+
+        if (checkQuest.right(1) == '=')
+        {
+            checkQuest += " " + id;
+        }
+
+    }
+
+
+    qDebug() << "checkQuest:" << checkQuest;
+
+    query.exec(checkQuest);
+
+
+    QSqlRecord payRec = query.record();
+
+
+    if (payRec.isEmpty())
+    {
+        qDebug() << "Allowed to take a pay";
+        return;
+    }
+    else
+    {
+        senderToClient(sckt, "PayDenied");
+        qDebug() << "PayDenied";
+        return;
+    }
+
+
+
+
+
+
 
     // Cash:
     // SELECT paket FROM users WHERE id=23341   (59)
     // SELECT price FROM plans2 WHERE id=59    (330)
     // SELECT srvs FROM users WHERE id=23341  (3)
-    //
-    //
-
 
 
     // INSERT INTO pays (mid, cash, type, time, admin_id, admin_ip, office, bonus, reason, coment, category)
     // VALUES (a, b, c, d, e, f, g, h, i, j, k)
+
 
     // Должно произойти следущее:
     // INSERT INTO pays (mid, cash, type, time, admin_id, admin_ip, office, bonus, reason, coment, category)
@@ -348,137 +427,6 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key)
     // UPDATE users SET balance=balance+550.00 WHERE id=3281 LIMIT
 
 
-
-
-
-
-}
-
-
-void QSimpleServer::askSql(const QString &ident, const QString &key, QString &answer)
-{
-    //qDebug() << "OK, this is a new code.";
-
-    QString quest = map.value(key);
-
-    query.exec(quest + ident);
-
-    short row = query.size();
-    short column = query.record().count();
-
-    // qDebug() << "Строк: " << row << ", столбцов: " << column;
-
-
-
-    QSqlQueryModel model;
-
-    model.setQuery(quest + ident);
-
-
-    if(model.lastError().isValid())
-        qDebug() << model.lastError();
-
-
-    QVector<QString> times_vct, cashes_vct, comments_vct;
-
-    int i(0);
-    int j(0);
-
-    QString sqlRec;
-
-    while (j != column)
-    {
-        while(i != row)
-        {
-            sqlRec += model.record(i).value(j).toString() + ' ';
-
-            if(j == 0)
-            {
-              //  qDebug() << i << ": " << sqlRec;
-                times_vct.push_back(sqlRec);
-                sqlRec.clear();
-            }
-
-            if(j == 1)
-            {
-               // qDebug() << i << ": " << sqlRec;
-                cashes_vct.push_back(sqlRec);
-                sqlRec.clear();
-            }
-
-            if(j == 2)
-            {
-                //sqlRec += 'R';
-              //  qDebug() << i << ": " << sqlRec;
-                comments_vct.push_back(sqlRec);
-                sqlRec.clear();
-            }
-            ++i;
-        }
-
-        i = 0;
-        ++j;
-    }
-
-
-
-    for(auto &sstr:times_vct)
-    {
-        //qDebug() << sstr;
-        answer += sstr;
-    }
-
-    answer += "t";
-
-    for(auto &sstr:cashes_vct)
-    {
-        //qDebug() << str;
-        answer += sstr;
-    }
-
-    answer += "$";
-
-    qDebug() << "Now comments_vct parsing: ";
-    for(auto &sstr:comments_vct)
-    {
-        //qDebug() << sstr;
-        answer += sstr + '~';
-
-    }
-
-    answer += "@";
-
-
-    //qDebug() << "Next information will be sent: ";
-    //qDebug() << answer;
-
-
-}
-
-
-bool QSimpleServer::readConfig(QStringList &line)
-{
-    QFile in("config");
-    if (!in.open(QIODevice::ReadOnly | QIODevice::Text))
-    {
-        qDebug() << "Unable to read the configuration file. \nFirstly, check the location.";
-        return false;
-    }else{
-        qDebug() << "Open configuration file.... ok";
-
-        while (!in.atEnd()) {
-            QString temp = in.readLine();
-            QString str;
-            for(auto &c:temp)
-            {
-                if(c == '\n' || c == '\t')
-                    break;
-                str += c;
-            }
-            line.push_back(str);
-        }
-    }
-    return true;
 }
 
 void QSimpleServer::queryToSql(const QString& id, const QString &key, QString &answer)
@@ -526,6 +474,135 @@ void QSimpleServer::queryToSql(const QString& id, const QString &key, QString &a
     //qDebug() << "answer: " + answer;
 
 }
+
+
+void QSimpleServer::askSql(const QString &ident, const QString &key, QString &answer)
+{
+    //qDebug() << "OK, this is a new code.";
+
+    QString quest = map.value(key);
+
+    query.exec(quest + ident);
+
+    short row = query.size();
+    short column = query.record().count();
+
+    // qDebug() << "Строк: " << row << ", столбцов: " << column;
+
+
+
+    QSqlQueryModel model;
+
+    model.setQuery(quest + ident);
+
+
+    if(model.lastError().isValid())
+        qDebug() << model.lastError();
+
+
+    QVector<QString> times_vct, cashes_vct, comments_vct;
+
+    int i(0);
+    int j(0);
+
+    QString sqlRec;
+
+    while (j != column)
+    {
+        while(i != row)
+        {
+            sqlRec += model.record(i).value(j).toString() + ' ';
+
+            if(j == 0)
+            {
+                //  qDebug() << i << ": " << sqlRec;
+                times_vct.push_back(sqlRec);
+                sqlRec.clear();
+            }
+
+            if(j == 1)
+            {
+                // qDebug() << i << ": " << sqlRec;
+                cashes_vct.push_back(sqlRec);
+                sqlRec.clear();
+            }
+
+            if(j == 2)
+            {
+                //sqlRec += 'R';
+                //  qDebug() << i << ": " << sqlRec;
+                comments_vct.push_back(sqlRec);
+                sqlRec.clear();
+            }
+            ++i;
+        }
+
+        i = 0;
+        ++j;
+    }
+
+
+
+    for(auto &sstr:times_vct)
+    {
+        //qDebug() << sstr;
+        answer += sstr;
+    }
+
+    answer += "t";
+
+    for(auto &sstr:cashes_vct)
+    {
+        //qDebug() << str;
+        answer += sstr;
+    }
+
+    answer += "$";
+
+    //qDebug() << "Now comments_vct parsing: ";
+    for(auto &sstr:comments_vct)
+    {
+        //qDebug() << sstr;
+        answer += sstr + '~';
+
+    }
+
+    answer += "@";
+
+
+    //qDebug() << "Next information will be sent: ";
+    //qDebug() << answer;
+
+
+}
+
+
+bool QSimpleServer::readConfig(QStringList &line)
+{
+    QFile in("config");
+    if (!in.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        qDebug() << "Unable to read the configuration file. \nFirstly, check the location.";
+        return false;
+    }else{
+        qDebug() << "Open configuration file.... ok";
+
+        while (!in.atEnd()) {
+            QString temp = in.readLine();
+            QString str;
+            for(auto &c:temp)
+            {
+                if(c == '\n' || c == '\t')
+                    break;
+                str += c;
+            }
+            line.push_back(str);
+        }
+    }
+    return true;
+}
+
+
 
 
 void QSimpleServer::updateSql(const QString &id, const QString &key, const QString arg)
