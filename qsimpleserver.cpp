@@ -348,24 +348,56 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
 
 
-    QString dateSince = now.toString(payDate + "/MM/yyyy");   // dd/MM/yyyy
+    QString dateFirst = now.toString(payDate + "/MM/yyyy");   // dd/MM/yyyy
 
-    QDateTime t_Date = QDateTime::fromString(dateSince, "dd/MM/yyyy");
+    // расчетная дата с сегодняшним месяцем это dateFirst
+
+    QDateTime t_Date = QDateTime::fromString(dateFirst, "dd/MM/yyyy");
+
+    // возвращаем ее обратно к типу QDateTime это t_Date
 
     unsigned long dateSinceInt = t_Date.toTime_t();
 
-    dateSince = QString::number(t_Date.toTime_t());
+    // получаем в integer, UNIX timestamp
 
-    // слудующая дата снятия
+    dateFirst = QString::number(t_Date.toTime_t());
+
+    // это строка с тем же UNIX timestamp
+
+    const int month = 2629743; // секунд в месяце
 
 
-    dateSinceInt += 2629743;
 
-    QString dateTill = QString::number(dateSinceInt);
+
+    // Имеем:
+    // dateFirst - строка с timestamp (расчетная дата в текущий месяц)
+    // dateSinceInt - целочисленное значение ее же
+    // month - кол-во секунд в месяце
+    //
+
+
+
+    QString dateTill; // время ДО которого будет проверка
+
+
+    if (now.toString("dd").toInt() < payDate.toInt()) // Если сегодняшний день меньше даты платежа
+    {
+        dateSinceInt -= month;       // уменьшаем время на месяц (Будет начальное время)
+        dateTill = dateFirst;        // Конечное время dateTill
+        dateFirst = QString::number(dateSinceInt);
+        //qDebug() << "Option if: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
+
+    }else{
+        dateSinceInt += month;
+        dateTill = QString::number(dateSinceInt);
+        //qDebug() << "Option else: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
+    }
+
 
     QString checkStr(map.value("chekForTrustedPay!"));
 
     QString checkQuest;
+
 
     for (auto &ch:checkStr)
     {
@@ -373,7 +405,8 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
         if (checkQuest.right(7) == "BETWEEN")
         {
             checkQuest += " ";
-            checkQuest += dateSince + " AND " + dateTill;
+            checkQuest += dateFirst + " AND " + dateTill;
+
         }
 
         if (checkQuest.right(1) == '=')
@@ -389,10 +422,12 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     query.exec(checkQuest);
 
 
-    QSqlRecord payRec = query.record();
 
 
-    if (payRec.isEmpty())
+    qDebug() << "Content of query: " <<  payAnswer;
+
+
+    if (!(payAnswer.toInt() > 0))
     {
         qDebug() << "Allowed to take a pay";
         return;
@@ -403,10 +438,6 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
         qDebug() << "PayDenied";
         return;
     }
-
-
-
-
 
 
 
