@@ -424,18 +424,20 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
 
 
-    qDebug() << "Content of query: " <<  payAnswer;
 
 
-    if (!(payAnswer.toInt() > 0))
+    qDebug() << "Content of query (strung): " <<  query.value(0).toString();
+
+
+    if (query.value(0).toInt() > 0)
     {
-        qDebug() << "Allowed to take a pay";
+        senderToClient(sckt, "PayDenied");
+        qDebug() << "PayDenied";
         return;
     }
     else
     {
-        senderToClient(sckt, "PayDenied");
-        qDebug() << "PayDenied";
+        qDebug() << "Allowed to take a pay";
         return;
     }
 
