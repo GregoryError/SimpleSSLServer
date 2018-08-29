@@ -333,11 +333,6 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
     QString quest, cash;
 
-    // chekForTrustedPay! - is the key for checking is it possible to take trusted pay
-    // its content: SELECT * FROM pays WHERE mid = AND time BETWEEN AND type IN (20,21,22)
-
-
-
     QString payDate_f, payDate;                 // узнаем дату платежа в текущем мсц, и переводим ее в unixtime
 
     queryToSql(id, "askPayDate!", payDate_f);
@@ -345,8 +340,6 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     for (auto &ch: payDate_f)                  // considering to use RegXeps
         if (ch.isDigit())
             payDate += ch;
-
-
 
     QString dateFirst = now.toString(payDate + "/MM/yyyy");   // dd/MM/yyyy
 
@@ -366,8 +359,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
     const int month = 2629743; // секунд в месяце
 
-
-
+    const int days_3 = 259200;
 
     // Имеем:
     // dateFirst - строка с timestamp (расчетная дата в текущий месяц)
@@ -394,6 +386,9 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     }
 
 
+    // chekForTrustedPay! - is the key for checking is it possible to take trusted pay
+    // its content: SELECT * FROM pays WHERE mid = AND time BETWEEN AND type IN (20,21,22)
+
     QString checkStr(map.value("chekForTrustedPay!"));
 
     QString checkQuest;
@@ -417,32 +412,62 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     }
 
 
-    qDebug() << "checkQuest:" << checkQuest;
+   // qDebug() << "checkQuest:" << checkQuest;
 
     query.exec(checkQuest);
 
     QSqlRecord payRec = query.record();
 
-
-
-
-
     while(query.next())
     {
-
-
-        qDebug() << "Content of query (string): " <<  query.value(payRec.indexOf("cash")).toInt();
+       // qDebug() << "Content of query (string): " <<  query.value(payRec.indexOf("cash")).toInt();
 
 
         if (query.value(payRec.indexOf("cash")).toInt() > 0)
         {
             senderToClient(sckt, "PayDenied");
-            qDebug() << "PayDenied";
+            qDebug() << "Pay denied for " << id;
             return;
         }
         else
         {
-            qDebug() << "Allowed to take a pay";
+            qDebug() << "Allowed to take a trusted_pay for " << id;
+
+            int PaySumm = 0;
+
+            query.exec(map.value(map.value("showPlanPrice!") + " id=" + id));
+
+            payRec.clear();
+
+            payRec = query.record();
+
+            while(query.next())
+            {
+                PaySumm = query.value(payRec.indexOf("price")).toInt();
+            }
+
+            // Additional services:
+
+            query.exec(map.value(map.value("showUserSrvs!") + " id=" + id));
+
+            payRec.clear();
+
+            payRec = query.record();
+
+            int srvsNum;
+
+            while(query.next())
+            {
+                srvsNum += query.value(payRec.indexOf("srvs")).toInt();
+            }
+
+
+
+
+
+
+
+
             return;
         }
 
@@ -450,9 +475,8 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
 
     // Cash:
-    // SELECT paket FROM users WHERE id=23341   (59)
-    // SELECT price FROM plans2 WHERE id=59    (330)
-    // SELECT srvs FROM users WHERE id=23341  (3)
+    // showPlanPrice!   =     SELECT price FROM plans2 WHERE id=(SELECT paket FROM users WHERE           ///(330)
+    // showUserSrvs!     =      SELECT srvs FROM users WHERE id=23341  (3)
 
 
     // INSERT INTO pays (mid, cash, type, time, admin_id, admin_ip, office, bonus, reason, coment, category)
