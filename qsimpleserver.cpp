@@ -412,7 +412,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     }
 
 
-   // qDebug() << "checkQuest:" << checkQuest;
+    // qDebug() << "checkQuest:" << checkQuest;
 
     query.exec(checkQuest);
 
@@ -420,7 +420,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
     while(query.next())
     {
-       // qDebug() << "Content of query (string): " <<  query.value(payRec.indexOf("cash")).toInt();
+        // qDebug() << "Content of query (string): " <<  query.value(payRec.indexOf("cash")).toInt();
 
 
         if (query.value(payRec.indexOf("cash")).toInt() > 0)
@@ -458,8 +458,27 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
             while(query.next())
             {
-                srvsNum += query.value(payRec.indexOf("srvs")).toInt();
+                srvsNum = query.value(payRec.indexOf("srvs")).toInt();
             }
+
+            QFile in("srvs");
+            if (!in.open(QIODevice::ReadOnly | QIODevice::Text))
+            {
+                qDebug() << "Error: can`t open 'srvs' file. Check the location. \n Server is working anyway.";
+            }else{
+                int i = 1;
+                while (!in.atEnd()) {
+                    QString temp = in.readLine();
+
+                }
+
+
+
+
+
+            }
+
+
 
 
 
@@ -661,7 +680,9 @@ bool QSimpleServer::readConfig(QStringList &line)
             }
             line.push_back(str);
         }
+        in.close();
     }
+
     return true;
 }
 
