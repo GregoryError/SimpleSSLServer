@@ -5,10 +5,39 @@ QSimpleServer::QSimpleServer(QObject *parent) :
     QTcpServer(parent)
 {
 
+    const QDateTime now = QDateTime::currentDateTime();
 
-    now = QDateTime::currentDateTime();
 
-    qDebug() << "Check the current time...." << now.toString("yyyy-MM-dd HH:MM:ss");
+
+    qDebug() << "Check the current time...." << now.toString("dd.MM.yyyy HH:mm:s");
+
+
+    //--------------srvs-file----------------------------------------------------------
+
+
+
+    QVector<int> srvsVal;
+    QFile s_in("srvs");
+    if (!s_in.open(QIODevice::ReadOnly | QIODevice::Text))
+    {
+        qDebug() << "Error: can`t open 'srvs' file. Check the location.\nServer is working anyway.";
+    }else{
+        qDebug() << "Open the 'srvs' file.... ok";
+        while (!s_in.atEnd()) {
+            QString valTmp = s_in.readLine();
+            QString pVal;
+            for (auto &a: valTmp)
+            {
+                if (a =='#')
+                    break;
+                pVal += a;
+            }
+            srvsVal.push_back(pVal.toInt());
+        }
+        for (int i = 0; i < srvsVal.size(); ++i)
+            srvsMap.insert(srvsVal[i], srvsVal[i + 1]);
+    }
+    s_in.close();
 
 
     //--------------config-data------------------------------------------------------
@@ -321,9 +350,6 @@ void QSimpleServer::onReadyRead()
     }
 }
 
-
-
-
 void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSslSocket *sckt)
 {
     QString t_quest = map.value(key);
@@ -341,6 +367,15 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
         if (ch.isDigit())
             payDate += ch;
 
+    if (payDate.length() == 1)
+    {
+        QString tmp = payDate;
+        payDate = "0" + tmp;
+    }
+
+
+    now = QDateTime::currentDateTime();
+
     QString dateFirst = now.toString(payDate + "/MM/yyyy");   // dd/MM/yyyy
 
     // расчетная дата с сегодняшним месяцем это dateFirst
@@ -357,6 +392,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
     // это строка с тем же UNIX timestamp
 
+
     const int month = 2629743; // секунд в месяце
 
     const int days_3 = 259200;
@@ -368,7 +404,6 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     //
 
 
-
     QString dateTill; // время ДО которого будет проверка
 
 
@@ -377,12 +412,12 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
         dateSinceInt -= month;       // уменьшаем время на месяц (Будет начальное время)
         dateTill = dateFirst;        // Конечное время dateTill
         dateFirst = QString::number(dateSinceInt);
-        //qDebug() << "Option if: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
+        qDebug() << "Option if: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
 
     }else{
         dateSinceInt += month;
         dateTill = QString::number(dateSinceInt);
-        //qDebug() << "Option else: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
+        qDebug() << "Option else: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
     }
 
 
@@ -412,86 +447,73 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     }
 
 
-    // qDebug() << "checkQuest:" << checkQuest;
+    qDebug() << "checkQuest:" << checkQuest;
 
     query.exec(checkQuest);
 
     QSqlRecord payRec = query.record();
 
-    while(query.next())
+
+    if (query.size() > 0)
     {
-        // qDebug() << "Content of query (string): " <<  query.value(payRec.indexOf("cash")).toInt();
-
-
-        if (query.value(payRec.indexOf("cash")).toInt() > 0)
-        {
-            senderToClient(sckt, "PayDenied");
-            qDebug() << "Pay denied for " << id;
-            return;
-        }
-        else
-        {
-            qDebug() << "Allowed to take a trusted_pay for " << id;
-
-            int PaySumm = 0;
-
-            query.exec(map.value(map.value("showPlanPrice!") + " id=" + id));
-
-            payRec.clear();
-
-            payRec = query.record();
-
-            while(query.next())
-            {
-                PaySumm = query.value(payRec.indexOf("price")).toInt();
-            }
-
-            // Additional services:
-
-            query.exec(map.value(map.value("showUserSrvs!") + " id=" + id));
-
-            payRec.clear();
-
-            payRec = query.record();
-
-            int srvsNum;
-
-            while(query.next())
-            {
-                srvsNum = query.value(payRec.indexOf("srvs")).toInt();
-            }
-
-            QFile in("srvs");
-            if (!in.open(QIODevice::ReadOnly | QIODevice::Text))
-            {
-                qDebug() << "Error: can`t open 'srvs' file. Check the location. \n Server is working anyway.";
-            }else{
-                int i = 1;
-                while (!in.atEnd()) {
-                    QString temp = in.readLine();
-
-                }
-
-
-
-
-
-            }
-
-
-
-
-
-
-
-
-
-
-            return;
-        }
-
+        query.first();
+        qDebug() << "Content of query (cash): " <<  query.value(payRec.indexOf("cash")).toInt();
     }
 
+
+
+    if (query.size() > 0)
+    {
+        qDebug() << "Trusted_pay denied for " << id;
+        senderToClient(sckt, "PayDenied");
+        return;
+    }
+    else
+    {
+        qDebug() << "Allowed to take a trusted_pay for " << id;
+
+        int PaySumm = 0;
+
+        query.exec(map.value("showPlanPrice!") + " id=" + id + ")");
+
+        payRec = query.record();
+
+        while(query.next())
+        {
+
+            PaySumm = query.value(payRec.indexOf("price")).toInt();
+        }
+
+        // Additional services:
+
+        query.exec(map.value("showUserSrvs!") + " id=" + id);
+
+        payRec = query.record();
+
+        int srvsNum;
+
+        while(query.next())
+        {
+            srvsNum = query.value(payRec.indexOf("srvs")).toInt();
+        }
+
+
+        PaySumm += srvsMap.value(srvsNum);     // TADAAAM!  (The summ need to take)
+
+
+        now = QDateTime::currentDateTime();
+
+
+
+        QString TrPayReq = map.value("requestTrustedPay!").arg(id).arg(PaySumm).arg(20)
+                .arg(now.currentDateTime().toSecsSinceEpoch() + days_3).arg("'Платеж создан " + now.currentDateTime().toString("dd.MM.yyyy HH:MM:s") + " через мобильное приложение.'").arg(1000);
+
+        //query.exec(TrPayReq);
+
+        senderToClient(sckt, "PayOk");  // посылаем на устройство сообщение что все ок, запрос выполнен
+
+
+    }
 
     // Cash:
     // showPlanPrice!   =     SELECT price FROM plans2 WHERE id=(SELECT paket FROM users WHERE           ///(330)
@@ -500,14 +522,6 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
     // INSERT INTO pays (mid, cash, type, time, admin_id, admin_ip, office, bonus, reason, coment, category)
     // VALUES (a, b, c, d, e, f, g, h, i, j, k)
-
-
-    // Должно произойти следущее:
-    // INSERT INTO pays (mid, cash, type, time, admin_id, admin_ip, office, bonus, reason, coment, category)
-    // VALUES (3281, 550.00, 21, 1529922389, 1, INET_ATON('192.168.7.25'), 1, 'y', ' Платеж создан 22.06.18 13:26', '', 1000)
-    //
-    // UPDATE users SET balance=balance+550.00 WHERE id=3281 LIMIT
-
 
 }
 

@@ -22,6 +22,8 @@
 #include <QSslSocket>
 #include <QRegExp>
 
+#include <QDateTime>
+
 
 
 #include <QByteArray>
@@ -38,6 +40,7 @@ public:
     QStringList lst;
     QString portTCP;
     QMap<QString, QString> map;
+    QMap<int, int> srvsMap;
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
     QSqlQuery query;
     QDateTime now;
