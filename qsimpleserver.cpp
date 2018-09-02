@@ -142,7 +142,7 @@ void QSimpleServer::senderToClient(QSslSocket *socket, const QString &str)
 
 void QSimpleServer::incomingConnection(qintptr handle)
 {
-    QSslSocket* socket = new QSslSocket();
+    socket = new QSslSocket();
 
     if(!socket->setSocketDescriptor(handle)){
         qDebug() << errorString();
@@ -273,7 +273,7 @@ void QSimpleServer::onReadyRead()
 
         if(key.mid(0, 17) == "requestTrustedPay")
         {
-            injectTrustedPay(id, key, socket);
+            injectTrustedPay(id, key, answ);
 
         }
         else if(key.mid(0, 4) == "show"){
@@ -350,7 +350,7 @@ void QSimpleServer::onReadyRead()
     }
 }
 
-void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSslSocket *sckt)
+void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QString &result)
 {
     QString t_quest = map.value(key);
 
@@ -407,17 +407,17 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     QString dateTill; // время ДО которого будет проверка
 
 
-    if (now.toString("dd").toInt() < payDate.toInt()) // Если сегодняшний день меньше даты платежа
+    if (now.toTime_t() < dateSinceInt)   //(now.toString("dd").toInt() < payDate.toInt()) // Если сегодняшний день меньше даты платежа
     {
         dateSinceInt -= month;       // уменьшаем время на месяц (Будет начальное время)
         dateTill = dateFirst;        // Конечное время dateTill
         dateFirst = QString::number(dateSinceInt);
-        qDebug() << "Option if: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
+        //qDebug() << "Option if: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
 
     }else{
         dateSinceInt += month;
         dateTill = QString::number(dateSinceInt);
-        qDebug() << "Option else: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
+        //qDebug() << "Option else: " << "dateFirst: " << dateFirst << "dateTill:" << dateTill;
     }
 
 
@@ -446,9 +446,6 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
 
     }
 
-
-    qDebug() << "checkQuest:" << checkQuest;
-
     query.exec(checkQuest);
 
     QSqlRecord payRec = query.record();
@@ -457,7 +454,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     if (query.size() > 0)
     {
         query.first();
-        qDebug() << "Content of query (cash): " <<  query.value(payRec.indexOf("cash")).toInt();
+       // qDebug() << "Content of query (cash): " <<  query.value(payRec.indexOf("cash")).toInt();
     }
 
 
@@ -465,7 +462,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
     if (query.size() > 0)
     {
         qDebug() << "Trusted_pay denied for " << id;
-        senderToClient(sckt, "PayDenied");
+        result = "PayDenied";
         return;
     }
     else
@@ -508,11 +505,9 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QSsl
         QString TrPayReq = map.value("requestTrustedPay!").arg(id).arg(PaySumm).arg(20)
                 .arg(now.currentDateTime().toSecsSinceEpoch() + days_3).arg("'Платеж создан " + now.currentDateTime().toString("dd.MM.yyyy HH:MM:s") + " через мобильное приложение.'").arg(1000);
 
-        //query.exec(TrPayReq);
+        query.exec(TrPayReq);
 
-        senderToClient(sckt, "PayOk");  // посылаем на устройство сообщение что все ок, запрос выполнен
-
-
+        result = "PayOk";  // посылаем на устройство сообщение что все ок, запрос выполнен
     }
 
     // Cash:
