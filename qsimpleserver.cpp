@@ -551,7 +551,7 @@ void QSimpleServer::showMsgs(const QString &id, QString &result)
 
     while (query.next())
     {
-        adminMsg += query.value(msgRec.indexOf("reason")).toString() + "~time:";
+        adminMsg += query.value(msgRec.indexOf("coment")).toString() + "~time:";
         adminMsg += query.value(msgRec.indexOf("time")).toString() + "~end()";
     }
 
