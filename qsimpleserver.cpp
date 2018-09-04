@@ -505,7 +505,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QStr
         }
 
 
-        PaySumm += srvsMap.value(srvsNum);     // TADAAAM!  (The summ need to take)
+        PaySumm += srvsMap.value(srvsNum, 0);     // TADAAAM!  (The summ need to take)
 
 
         now = QDateTime::currentDateTime();
@@ -540,44 +540,50 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QStr
 
 void QSimpleServer::showMsgs(const QString &id, QString &result)
 {
-    //showAdminMsgs!SELECT coment, time FROM pays WHERE mid = %1 AND type = 30 AND category IN (490, 491) ORDER BY time DESC
+    //showAdminMsgs! = SELECT coment, time FROM pays WHERE mid = %1 AND type = 30 AND category IN (493) ORDER BY time DESC
+    //showUserMsgs! = SELECT reason, time FROM pays WHERE mid = %1 AND type = 30 AND category IN (491) ORDER BY time DESC
 
-    QString que = map.value("showMsgs!").arg(id);
+    query.exec(map.value("showAdminMsgs!").arg(id));
 
-    QString msgComent, msgTime;
-
-    query.exec(que);
+    QString adminMsg, userMsg;
 
     QSqlRecord msgRec = query.record();
 
     while (query.next())
     {
-        msgComent += query.value(msgRec.indexOf("coment")).toString() + '~';   // '~' - the terminate symbol
-        msgTime += query.value(msgRec.indexOf("time")).toString() + '~';
+        adminMsg += query.value(msgRec.indexOf("reason")).toString() + "~time:";
+        adminMsg += query.value(msgRec.indexOf("time")).toString() + "~end()";
     }
 
-    result = msgComent + '^' + msgTime;
+    query.exec(map.value("showUserMsgs!").arg(id));
+
+    msgRec = query.record();
+
+    while (query.next())
+    {
+        userMsg += query.value(msgRec.indexOf("reason")).toString() + "~time:";
+        userMsg += query.value(msgRec.indexOf("time")).toString() + "~end()";
+    }
+
+    result = adminMsg + "~user:" + userMsg;
 
 }
 
 void QSimpleServer::insertMsg(const QString &id, const QString &txt)
 {
     //setMsgs:INSERT INTO pays (mid, coment, time, type, category) VALUES (%1, %2, %3, %4, %5)
-
     QString que = map.value("setMsgs:")
             .arg(id)    // mid
             .arg(txt)   // coment
             .arg(now.currentDateTime().toSecsSinceEpoch())   // time
             .arg(30)    // type
             .arg(491);  // category
-
     query.exec(que);
 }
 
 
 void QSimpleServer::queryToSql(const QString& id, const QString &key, QString &answer)
 {
-
     QString quest = map.value(key);
 
     //QSqlQuery query;
@@ -592,7 +598,6 @@ void QSimpleServer::queryToSql(const QString& id, const QString &key, QString &a
     }
 
     // QSqlRecord rec = query.record();
-
 
     short q(0);
 
