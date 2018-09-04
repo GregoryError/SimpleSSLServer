@@ -542,7 +542,7 @@ void QSimpleServer::showMsgs(const QString &id, QString &result)
 {
     //showAdminMsgs!SELECT coment, time FROM pays WHERE mid = %1 AND type = 30 AND category IN (490, 491) ORDER BY time DESC
 
-    QString que = map.value("showAdminMsgs!").arg(id);
+    QString que = map.value("showMsgs!").arg(id);
 
     QString msgComent, msgTime;
 
