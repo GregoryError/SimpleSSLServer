@@ -269,9 +269,15 @@ void QSimpleServer::onReadyRead()
 
 
         QString result;
-
-
-        if(key.mid(0, 17) == "requestTrustedPay")
+        if (key.mid(0, 7) == "setMsgs")
+        {
+            insertMsg(id, attribute);
+        }
+        else if (key.mid(0, 10) == "askForMsgs")
+        {
+            showMsgs(id, answ);
+        }
+        else if (key.mid(0, 17) == "requestTrustedPay")
         {
             injectTrustedPay(id, key, answ);
 
@@ -288,9 +294,11 @@ void QSimpleServer::onReadyRead()
                 askSql(id, key, answ);
                 //preparePayTable(answ);
 
-            }else askSql(id, key, answ);
+            }
+            else askSql(id, key, answ);
 
-        }else queryToSql(id, key, answ);
+        }
+        else queryToSql(id, key, answ);
 
         if(key.mid(0, 11) == "getAllData!")
         {
@@ -324,7 +332,8 @@ void QSimpleServer::onReadyRead()
                 }
             }
 
-        }else result = answ;
+        }
+        else result = answ;
 
         qDebug() << QDate::currentDate().toString()
                     + ", " + QTime::currentTime().toString()
@@ -338,7 +347,8 @@ void QSimpleServer::onReadyRead()
         //socket->waitForBytesWritten();
         socket->disconnectFromHost();
 
-    }else
+    }
+    else
     {
         senderToClient(socket, "denied");
 
@@ -454,7 +464,7 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QStr
     if (query.size() > 0)
     {
         query.first();
-       // qDebug() << "Content of query (cash): " <<  query.value(payRec.indexOf("cash")).toInt();
+        // qDebug() << "Content of query (cash): " <<  query.value(payRec.indexOf("cash")).toInt();
     }
 
 
@@ -502,8 +512,14 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QStr
 
 
 
-        QString TrPayReq = map.value("requestTrustedPay!").arg(id).arg(PaySumm).arg(20)
-                .arg(now.currentDateTime().toSecsSinceEpoch() + days_3).arg("'Платеж создан " + now.currentDateTime().toString("dd.MM.yyyy HH:MM:s") + " через мобильное приложение.'").arg(1000);
+        QString TrPayReq = map.value("requestTrustedPay!")
+                .arg(id)     // (mid, cash, type, time, coment, category, bonus) VALUES (%1, %2, %3, %4, %5, %6, %7)
+                .arg(PaySumm)
+                .arg(21)
+                .arg(now.currentDateTime().toSecsSinceEpoch() + days_3)
+                .arg("'Платеж создан " + now.currentDateTime().toString("dd.MM.yyyy HH:MM:s") + " через мобильное приложение.'")
+                .arg(1000)
+                .arg("y");
 
         query.exec(TrPayReq);
 
@@ -520,6 +536,45 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QStr
 
 }
 
+
+
+void QSimpleServer::showMsgs(const QString &id, QString &result)
+{
+    //showAdminMsgs!SELECT coment, time FROM pays WHERE mid = %1 AND type = 30 AND category IN (490, 491) ORDER BY time DESC
+
+    QString que = map.value("showAdminMsgs!").arg(id);
+
+    QString msgComent, msgTime;
+
+    query.exec(que);
+
+    QSqlRecord msgRec = query.record();
+
+    while (query.next())
+    {
+        msgComent += query.value(msgRec.indexOf("coment")).toString() + '~';   // '~' - the terminate symbol
+        msgTime += query.value(msgRec.indexOf("time")).toString() + '~';
+    }
+
+    result = msgComent + '^' + msgTime;
+
+}
+
+void QSimpleServer::insertMsg(const QString &id, const QString &txt)
+{
+    //setMsgs:INSERT INTO pays (mid, coment, time, type, category) VALUES (%1, %2, %3, %4, %5)
+
+    QString que = map.value("setMsgs:")
+            .arg(id)    // mid
+            .arg(txt)   // coment
+            .arg(now.currentDateTime().toSecsSinceEpoch())   // time
+            .arg(30)    // type
+            .arg(491);  // category
+
+    query.exec(que);
+}
+
+
 void QSimpleServer::queryToSql(const QString& id, const QString &key, QString &answer)
 {
 
@@ -535,7 +590,6 @@ void QSimpleServer::queryToSql(const QString& id, const QString &key, QString &a
     {
         query.exec(quest + " name='" + id + "'");
     }
-
 
     // QSqlRecord rec = query.record();
 
@@ -776,6 +830,7 @@ bool QSimpleServer::chekAuth(const QString &id, const QString &pass)
         return true;
     else return false;
 }
+
 
 
 void QSimpleServer::onDisconnected()
