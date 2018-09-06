@@ -274,6 +274,7 @@ void QSimpleServer::onReadyRead()
         QString result;
         if (key.mid(0, 7) == "setMsgs")
         {
+            //qDebug() << attribute;
             insertMsg(id, attribute);
         }
         else if (key.mid(0, 10) == "askForMsgs")
@@ -577,13 +578,17 @@ void QSimpleServer::showMsgs(const QString &id, QString &result)
 
 void QSimpleServer::insertMsg(const QString &id, const QString &txt)
 {
-    //setMsgs:INSERT INTO pays (mid, coment, time, type, category) VALUES (%1, %2, %3, %4, %5)
+    //setMsgs:INSERT INTO pays (mid, reason, time, type, category) VALUES (%1, %2, %3, %4, %5)
+
+    // INSERT INTO pays (mid, reason, time, type, category) VALUES (27720, "Test-message line", 1536271400, 30, 491)
+
     QString que = map.value("setMsgs:")
             .arg(id)    // mid
-            .arg(txt)   // coment
+            .arg("'" + txt + "'")   // reason
             .arg(now.currentDateTime().toSecsSinceEpoch())   // time
             .arg(30)    // type
             .arg(491);  // category
+
     query.exec(que);
 }
 
