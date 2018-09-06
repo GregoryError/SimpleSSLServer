@@ -21,6 +21,7 @@
 //#include <QTcpSocket>
 #include <QSslSocket>
 #include <QRegExp>
+#include <iostream>
 
 #include <QDateTime>
 
@@ -45,6 +46,7 @@ public:
     QSqlDatabase db = QSqlDatabase::addDatabase("QMYSQL");
     QSqlQuery query;
     QDateTime now;
+    int calls;
 
 
 

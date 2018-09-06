@@ -7,9 +7,11 @@ QSimpleServer::QSimpleServer(QObject *parent) :
 
     const QDateTime now = QDateTime::currentDateTime();
 
+    calls = 0;
 
 
-    qDebug() << "Check the current time...." << now.toString("dd.MM.yyyy HH:mm:s");
+
+    qDebug() << "Check the current time...." << now.toString("dd.MM.yyyy hh:mm");
 
 
     //--------------srvs-file----------------------------------------------------------
@@ -203,6 +205,7 @@ void QSimpleServer::onReadyRead()
 
 
 
+    ++calls;
 
     QString message(socket->readAll());
 
@@ -358,6 +361,9 @@ void QSimpleServer::onReadyRead()
 
         socket->disconnectFromHost();
     }
+
+    qDebug() << "Overall connections were committed: " << calls;
+
 }
 
 void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QString &result)
@@ -517,9 +523,9 @@ void QSimpleServer::injectTrustedPay(const QString &id, const QString &key, QStr
                 .arg(PaySumm)
                 .arg(21)
                 .arg(now.currentDateTime().toSecsSinceEpoch() + days_3)
-                .arg("'Платеж создан " + now.currentDateTime().toString("dd.MM.yyyy HH:MM:s") + " через мобильное приложение.'")
+                .arg("'Платеж создан " + now.currentDateTime().toString("dd.MM.yyyy hh:mm") + " через мобильное приложение.'")
                 .arg(1000)
-                .arg("y");
+                .arg("'y'");
 
         query.exec(TrPayReq);
 
