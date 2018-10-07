@@ -5,10 +5,9 @@ QSimpleServer::QSimpleServer(QObject *parent) :
     QTcpServer(parent)
 {
 
-    const QDateTime now = QDateTime::currentDateTime();
+    QDateTime now = QDateTime::currentDateTime();
 
     calls = 0;
-
 
 
     qDebug() << "Check the current time...." << now.toString("dd.MM.yyyy hh:mm");
@@ -344,8 +343,13 @@ void QSimpleServer::onReadyRead()
                     + ": " + id + " asking: " + key;
 
 
+        if (key == "getAllData!")
+        {
+            now = QDateTime::currentDateTime();                                                              //  "07.10.2018|21:52"
+            senderToClient(socket, (key + now.toString("dd.MM.yyyy|hh:mm") + result).toUtf8());
+        }else senderToClient(socket, (key + result).toUtf8());
 
-        senderToClient(socket, (key + result).toUtf8());
+
 
         //socket->write((key + result).toUtf8());
         //socket->waitForBytesWritten();
